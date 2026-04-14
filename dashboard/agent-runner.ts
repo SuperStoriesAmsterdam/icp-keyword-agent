@@ -106,8 +106,13 @@ export async function start(): Promise<void> {
       handleAgentMessage(message);
     }
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack || "" : "";
+    console.error("[Agent Error]", errorMsg, errorStack);
     pushMessage({ role: "system", content: `Agent error: ${errorMsg}`, timestamp: new Date().toISOString() });
+    if (errorStack) {
+      pushMessage({ role: "system", content: `Details: ${errorStack.slice(0, 500)}`, timestamp: new Date().toISOString() });
+    }
     broadcast({ type: "error", content: errorMsg });
   } finally {
     running = false;
