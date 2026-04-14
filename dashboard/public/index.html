@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICP & Keyword Research Agent — SuperStories</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>ICP & Keyword Research Agent</h1>
+      <span class="brand">SuperStories</span>
+    </div>
+    <p class="subtitle">Stateful research workflow with human-in-the-loop refinement</p>
+  </header>
+
+  <main>
+    <!-- Phase Pipeline -->
+    <section class="pipeline" id="pipeline">
+      <div class="phase" data-phase="intake">
+        <div class="phase-dot"></div>
+        <div class="phase-label">Intake</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="product-definition">
+        <div class="phase-dot"></div>
+        <div class="phase-label">Product Definition</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="search-sources">
+        <div class="phase-dot"></div>
+        <div class="phase-label">Search Sources</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="icp-research">
+        <div class="phase-dot"></div>
+        <div class="phase-label">ICP Research</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="icp-review">
+        <div class="phase-dot"></div>
+        <div class="phase-label">ICP Review</div>
+        <div class="phase-tag">Human in the loop</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="keyword-research">
+        <div class="phase-dot"></div>
+        <div class="phase-label">Keyword Research</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="keyword-review">
+        <div class="phase-dot"></div>
+        <div class="phase-label">Keyword Review</div>
+        <div class="phase-tag">Human in the loop</div>
+      </div>
+      <div class="phase-connector"></div>
+      <div class="phase" data-phase="deliver">
+        <div class="phase-dot"></div>
+        <div class="phase-label">Deliver</div>
+      </div>
+    </section>
+
+    <!-- Status Bar -->
+    <section class="status-bar" id="statusBar">
+      <span class="status-indicator" id="statusIndicator"></span>
+      <span id="statusText">Checking status...</span>
+      <span class="status-time" id="statusTime"></span>
+    </section>
+
+    <!-- Content Panels -->
+    <div class="panels" id="panels">
+      <!-- Empty state -->
+      <section class="panel empty-state" id="emptyState">
+        <div class="empty-icon">&#9673;</div>
+        <h2>No active research</h2>
+        <p>Run the agent in your terminal to start a research workflow.</p>
+        <code>cd ~/Desktop/Builds/Agent && npm start</code>
+      </section>
+
+      <!-- Intake Panel -->
+      <section class="panel" id="intakePanel" hidden>
+        <h2>Intake</h2>
+        <div class="panel-content" id="intakeContent"></div>
+      </section>
+
+      <!-- ICP Panel -->
+      <section class="panel" id="icpPanel" hidden>
+        <h2>ICP Profile</h2>
+        <div class="panel-content" id="icpContent"></div>
+      </section>
+
+      <!-- Keywords Panel -->
+      <section class="panel" id="keywordsPanel" hidden>
+        <h2>Keyword Map</h2>
+        <div class="panel-content" id="keywordsContent"></div>
+      </section>
+
+      <!-- Feedback Panel -->
+      <section class="panel" id="feedbackPanel" hidden>
+        <h2>Feedback History</h2>
+        <div class="panel-content" id="feedbackContent"></div>
+      </section>
+
+      <!-- Output Panel -->
+      <section class="panel wide" id="outputPanel" hidden>
+        <h2>Final Deliverables</h2>
+        <div class="output-tabs">
+          <button class="tab active" data-target="icpOutput">ICP Profile</button>
+          <button class="tab" data-target="keywordOutput">Keyword Map</button>
+        </div>
+        <div class="panel-content" id="icpOutput"></div>
+        <div class="panel-content" id="keywordOutput" hidden></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>Built with Claude Agent SDK &middot; SuperStories BV</p>
+  </footer>
+
+  <script>
+    const PHASES_ORDER = ['intake', 'product-definition', 'search-sources', 'icp-research', 'icp-review', 'keyword-research', 'keyword-review', 'deliver', 'complete'];
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        updatePipeline(data.phase);
+        updateStatusBar(data);
+        await updatePanels(data);
+      } catch (e) {
+        document.getElementById('statusText').textContent = 'Dashboard offline';
+      }
+    }
+
+    function updatePipeline(currentPhase) {
+      const currentIdx = PHASES_ORDER.indexOf(currentPhase);
+      document.querySelectorAll('.phase').forEach(el => {
+        const phase = el.dataset.phase;
+        const phaseIdx = PHASES_ORDER.indexOf(phase);
+        el.classList.remove('active', 'complete', 'inactive');
+        if (currentPhase === 'idle') {
+          el.classList.add('inactive');
+        } else if (currentPhase === 'complete') {
+          el.classList.add('complete');
+        } else if (phaseIdx < currentIdx) {
+          el.classList.add('complete');
+        } else if (phaseIdx === currentIdx) {
+          el.classList.add('active');
+        } else {
+          el.classList.add('inactive');
+        }
+      });
+    }
+
+    function updateStatusBar(data) {
+      const indicator = document.getElementById('statusIndicator');
+      const text = document.getElementById('statusText');
+      const time = document.getElementById('statusTime');
+
+      if (!data.hasState) {
+        indicator.className = 'status-indicator idle';
+        text.textContent = 'No active research';
+      } else if (data.phase === 'complete') {
+        indicator.className = 'status-indicator complete';
+        text.textContent = 'Research complete';
+      } else {
+        indicator.className = 'status-indicator active';
+        const phaseLabels = {
+          'intake': 'Gathering client brief',
+          'product-definition': 'Defining the product',
+          'search-sources': 'Defining search sources',
+          'icp-research': 'Researching ICP',
+          'icp-review': 'Awaiting ICP feedback',
+          'keyword-research': 'Researching keywords',
+          'keyword-review': 'Awaiting keyword feedback',
+          'deliver': 'Finalizing deliverables'
+        };
+        text.textContent = phaseLabels[data.phase] || `Phase: ${data.phase}`;
+      }
+
+      time.textContent = new Date(data.updatedAt).toLocaleTimeString();
+    }
+
+    async function updatePanels(data) {
+      const emptyState = document.getElementById('emptyState');
+      const intakePanel = document.getElementById('intakePanel');
+      const icpPanel = document.getElementById('icpPanel');
+      const keywordsPanel = document.getElementById('keywordsPanel');
+      const feedbackPanel = document.getElementById('feedbackPanel');
+      const outputPanel = document.getElementById('outputPanel');
+
+      if (!data.hasState) {
+        emptyState.hidden = false;
+        intakePanel.hidden = true;
+        icpPanel.hidden = true;
+        keywordsPanel.hidden = true;
+        feedbackPanel.hidden = true;
+        outputPanel.hidden = true;
+        return;
+      }
+
+      emptyState.hidden = true;
+
+      // Intake
+      if (data.stateFiles.includes('intake.json')) {
+        intakePanel.hidden = false;
+        const intake = await fetchJSON('/api/state/intake.json');
+        if (intake) {
+          document.getElementById('intakeContent').innerHTML = renderIntake(intake);
+        }
+      }
+
+      // ICP
+      if (data.stateFiles.includes('icp-draft.json')) {
+        icpPanel.hidden = false;
+        const icp = await fetchJSON('/api/state/icp-draft.json');
+        if (icp) {
+          document.getElementById('icpContent').innerHTML = renderICP(icp);
+        }
+      }
+
+      // Keywords
+      if (data.stateFiles.includes('keywords-draft.json')) {
+        keywordsPanel.hidden = false;
+        const kw = await fetchJSON('/api/state/keywords-draft.json');
+        if (kw) {
+          document.getElementById('keywordsContent').innerHTML = renderKeywords(kw);
+        }
+      }
+
+      // Feedback
+      const feedbackFiles = data.stateFiles.filter(f => f.includes('feedback'));
+      if (feedbackFiles.length > 0) {
+        feedbackPanel.hidden = false;
+        let html = '';
+        for (const f of feedbackFiles) {
+          const fb = await fetchJSON(`/api/state/${f}`);
+          if (fb) {
+            html += `<h3>${f.replace('.json', '')}</h3>`;
+            if (Array.isArray(fb)) {
+              html += fb.map((item, i) => `<div class="feedback-item"><span class="fb-num">#${i + 1}</span> ${escapeHtml(typeof item === 'string' ? item : JSON.stringify(item))}</div>`).join('');
+            } else {
+              html += `<pre>${escapeHtml(JSON.stringify(fb, null, 2))}</pre>`;
+            }
+          }
+        }
+        document.getElementById('feedbackContent').innerHTML = html;
+      }
+
+      // Final outputs
+      if (data.outputFiles.length > 0) {
+        outputPanel.hidden = false;
+        if (data.outputFiles.includes('icp-profile.md')) {
+          const md = await fetchText('/api/output/icp-profile.md');
+          document.getElementById('icpOutput').innerHTML = `<pre class="markdown">${escapeHtml(md)}</pre>`;
+        }
+        if (data.outputFiles.includes('keyword-map.md')) {
+          const md = await fetchText('/api/output/keyword-map.md');
+          document.getElementById('keywordOutput').innerHTML = `<pre class="markdown">${escapeHtml(md)}</pre>`;
+        }
+      }
+    }
+
+    // ── Renderers ──────────────────────────────────────────────
+
+    function renderIntake(d) {
+      return `
+        <dl>
+          <dt>Business</dt><dd>${escapeHtml(d.businessName || '—')}</dd>
+          <dt>What they do</dt><dd>${escapeHtml(d.whatTheyDo || '—')}</dd>
+          <dt>Current audience</dt><dd>${escapeHtml(d.currentAudience || '—')}</dd>
+          <dt>Problem solved</dt><dd>${escapeHtml(d.problemSolved || '—')}</dd>
+          <dt>Positioning aspiration</dt><dd>${escapeHtml(d.positioningAspiration || '—')}</dd>
+          <dt>Existing data</dt><dd>${escapeHtml(d.existingData || '—')}</dd>
+          <dt>Additional context</dt><dd>${escapeHtml(d.additionalContext || '—')}</dd>
+        </dl>`;
+    }
+
+    function renderICP(d) {
+      let html = '';
+      if (d.summary) html += `<div class="icp-summary">${escapeHtml(d.summary)}</div>`;
+      if (d.demographics) {
+        html += '<h3>Demographics</h3><dl>';
+        for (const [k, v] of Object.entries(d.demographics)) {
+          html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</dd>`;
+        }
+        html += '</dl>';
+      }
+      if (d.psychographics) {
+        html += '<h3>Psychographics</h3><dl>';
+        for (const [k, v] of Object.entries(d.psychographics)) {
+          html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</dd>`;
+        }
+        html += '</dl>';
+      }
+      if (d.languagePatterns) {
+        html += '<h3>Language Patterns</h3>';
+        for (const [k, v] of Object.entries(d.languagePatterns)) {
+          if (Array.isArray(v) && v.length) {
+            html += `<h4>${escapeHtml(k)}</h4><ul>${v.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+          }
+        }
+      }
+      if (d.whereTheyGather) {
+        html += '<h3>Where They Gather</h3><dl>';
+        for (const [k, v] of Object.entries(d.whereTheyGather)) {
+          html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</dd>`;
+        }
+        html += '</dl>';
+      }
+      return html;
+    }
+
+    function renderKeywords(d) {
+      let html = '';
+      if (d.summary) html += `<div class="kw-summary">${escapeHtml(d.summary)}</div>`;
+      for (const stage of ['awareness', 'consideration', 'decision']) {
+        const clusters = d[stage];
+        if (clusters && clusters.length) {
+          html += `<h3>${stage.charAt(0).toUpperCase() + stage.slice(1)}</h3>`;
+          for (const cluster of clusters) {
+            html += `<div class="kw-cluster"><h4>${escapeHtml(cluster.theme)}</h4><ul>`;
+            for (const kw of cluster.keywords || []) {
+              html += `<li><span class="kw-term">${escapeHtml(kw.term)}</span> <span class="kw-source">${escapeHtml(kw.source)}</span></li>`;
+            }
+            html += '</ul></div>';
+          }
+        }
+      }
+      return html || '<p>No keywords yet</p>';
+    }
+
+    // ── Utilities ──────────────────────────────────────────────
+
+    async function fetchJSON(url) {
+      try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch { return null; }
+    }
+
+    async function fetchText(url) {
+      try { const r = await fetch(url); return r.ok ? await r.text() : ''; } catch { return ''; }
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // ── Tabs ───────────────────────────────────────────────────
+
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.target;
+        btn.closest('.output-tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        btn.closest('.panel').querySelectorAll('.panel-content').forEach(p => p.hidden = true);
+        document.getElementById(target).hidden = false;
+      });
+    });
+
+    // ── Auto-refresh ───────────────────────────────────────────
+
+    fetchStatus();
+    setInterval(fetchStatus, 10000);
+  </script>
+</body>
+</html>
