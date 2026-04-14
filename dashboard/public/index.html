@@ -12,143 +12,69 @@
       <h1>ICP & Keyword Research Agent</h1>
       <span class="brand">SuperStories</span>
     </div>
-    <p class="subtitle">Stateful research workflow with human-in-the-loop refinement</p>
   </header>
 
+  <!-- Phase Pipeline -->
+  <nav class="pipeline">
+    <div class="phase" data-phase="intake"><span class="dot"></span><span class="label">Intake</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="product-definition"><span class="dot"></span><span class="label">Product</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="search-sources"><span class="dot"></span><span class="label">Sources</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="icp-research"><span class="dot"></span><span class="label">ICP Research</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="icp-review"><span class="dot"></span><span class="label">ICP Review</span><span class="hitl">HITL</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="keyword-research"><span class="dot"></span><span class="label">Keywords</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="keyword-review"><span class="dot"></span><span class="label">KW Review</span><span class="hitl">HITL</span></div>
+    <div class="connector"></div>
+    <div class="phase" data-phase="deliver"><span class="dot"></span><span class="label">Deliver</span></div>
+  </nav>
+
+  <!-- Main content -->
   <main>
-    <!-- Phase Pipeline -->
-    <section class="pipeline" id="pipeline">
-      <div class="phase" data-phase="intake">
-        <div class="phase-dot"></div>
-        <div class="phase-label">Intake</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="product-definition">
-        <div class="phase-dot"></div>
-        <div class="phase-label">Product Definition</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="search-sources">
-        <div class="phase-dot"></div>
-        <div class="phase-label">Search Sources</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="icp-research">
-        <div class="phase-dot"></div>
-        <div class="phase-label">ICP Research</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="icp-review">
-        <div class="phase-dot"></div>
-        <div class="phase-label">ICP Review</div>
-        <div class="phase-tag">Human in the loop</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="keyword-research">
-        <div class="phase-dot"></div>
-        <div class="phase-label">Keyword Research</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="keyword-review">
-        <div class="phase-dot"></div>
-        <div class="phase-label">Keyword Review</div>
-        <div class="phase-tag">Human in the loop</div>
-      </div>
-      <div class="phase-connector"></div>
-      <div class="phase" data-phase="deliver">
-        <div class="phase-dot"></div>
-        <div class="phase-label">Deliver</div>
-      </div>
-    </section>
+    <!-- Status -->
+    <div class="status-line">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Ready</span>
+    </div>
 
-    <!-- Status Bar -->
-    <section class="status-bar" id="statusBar">
-      <span class="status-indicator" id="statusIndicator"></span>
-      <span id="statusText">Connecting...</span>
-      <span class="status-time" id="statusTime"></span>
-    </section>
+    <!-- Conversation -->
+    <div class="conversation" id="conversation">
+      <!-- Empty state -->
+      <div class="empty-state" id="emptyState">
+        <p class="empty-title">Ready to research</p>
+        <p class="empty-sub">Start a new ICP & keyword research workflow.</p>
+        <button class="btn" id="btnStart" onclick="startAgent()">Start Research</button>
+      </div>
+    </div>
 
-    <!-- Chat + Panels Layout -->
-    <div class="layout">
-      <!-- Chat Panel -->
-      <section class="chat-panel" id="chatPanel">
-        <div class="chat-messages" id="chatMessages">
-          <!-- Empty state / start button -->
-          <div class="chat-empty" id="chatEmpty">
-            <div class="empty-icon">&#9673;</div>
-            <h2>Ready to research</h2>
-            <p>Start a new ICP & keyword research workflow.</p>
-            <button class="btn-start" id="btnStart" onclick="startAgent()">Start Research</button>
-          </div>
+    <!-- Input area -->
+    <div class="input-area" id="inputArea" hidden>
+      <form onsubmit="sendChat(event)">
+        <textarea id="chatInput" placeholder="Type your response..." rows="3"></textarea>
+        <div class="input-actions">
+          <span class="input-hint">Press Shift+Enter for new line</span>
+          <button type="submit" class="btn" id="btnSend">Send</button>
         </div>
-        <form class="chat-input" id="chatForm" onsubmit="sendChat(event)" hidden>
-          <input type="text" id="chatInput" placeholder="Type your response..." autocomplete="off">
-          <button type="submit" id="btnSend">Send</button>
-        </form>
-      </section>
-
-      <!-- State Panels (sidebar) -->
-      <aside class="side-panels" id="sidePanels">
-        <section class="panel" id="intakePanel" hidden>
-          <h2>Intake Brief</h2>
-          <div class="panel-content" id="intakeContent"></div>
-        </section>
-
-        <section class="panel" id="icpPanel" hidden>
-          <h2>ICP Profile</h2>
-          <div class="panel-content" id="icpContent"></div>
-        </section>
-
-        <section class="panel" id="keywordsPanel" hidden>
-          <h2>Keyword Map</h2>
-          <div class="panel-content" id="keywordsContent"></div>
-        </section>
-
-        <section class="panel" id="feedbackPanel" hidden>
-          <h2>Feedback History</h2>
-          <div class="panel-content" id="feedbackContent"></div>
-        </section>
-
-        <section class="panel" id="outputPanel" hidden>
-          <h2>Final Deliverables</h2>
-          <div class="output-tabs">
-            <button class="tab active" data-target="icpOutput">ICP Profile</button>
-            <button class="tab" data-target="keywordOutput">Keyword Map</button>
-          </div>
-          <div class="panel-content" id="icpOutput"></div>
-          <div class="panel-content" id="keywordOutput" hidden></div>
-        </section>
-      </aside>
+      </form>
     </div>
   </main>
 
-  <footer>
-    <p>Built with Claude Agent SDK &middot; SuperStories BV</p>
-  </footer>
-
   <script>
-    const PHASES_ORDER = ['intake', 'product-definition', 'search-sources', 'icp-research', 'icp-review', 'keyword-research', 'keyword-review', 'deliver', 'complete'];
-
+    const PHASES = ['intake','product-definition','search-sources','icp-research','icp-review','keyword-research','keyword-review','deliver','complete'];
     let agentRunning = false;
-    let waitingForInput = false;
     let eventSource = null;
 
-    // ── SSE Connection ─────────────────────────────────────────
+    // ── SSE ────────────────────────────────────────────────────
 
     function connectSSE() {
       eventSource = new EventSource('/api/stream');
-
-      eventSource.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        handleEvent(data);
-      };
-
+      eventSource.onmessage = (e) => handleEvent(JSON.parse(e.data));
       eventSource.onerror = () => {
-        document.getElementById('statusText').textContent = 'Reconnecting...';
-        setTimeout(() => {
-          if (eventSource) eventSource.close();
-          connectSSE();
-        }, 3000);
+        setTimeout(() => { if (eventSource) eventSource.close(); connectSSE(); }, 3000);
       };
     }
 
@@ -156,54 +82,45 @@
       switch (data.type) {
         case 'connected':
           agentRunning = data.running;
-          updateUI();
-          // Render existing messages
-          if (data.messages && data.messages.length > 0) {
+          if (data.messages?.length > 0) {
+            document.getElementById('emptyState').hidden = true;
             data.messages.forEach(msg => renderMessage(msg));
           }
-          break;
-
-        case 'started':
-          agentRunning = true;
           updateUI();
           break;
-
+        case 'started':
+          agentRunning = true;
+          document.getElementById('emptyState').hidden = true;
+          updateUI();
+          break;
         case 'message':
           renderMessage(data.message);
           break;
-
         case 'waiting':
-          waitingForInput = true;
           updateUI();
           document.getElementById('chatInput').focus();
           break;
-
         case 'stopped':
         case 'complete':
           agentRunning = false;
-          waitingForInput = false;
           updateUI();
           break;
-
         case 'error':
-          renderMessage({ role: 'system', content: `Error: ${data.content}`, timestamp: new Date().toISOString() });
+          renderMessage({ role: 'system', content: data.content, timestamp: new Date().toISOString() });
           break;
       }
-
-      // Refresh state panels
       fetchStatus();
     }
 
-    // ── Agent Control ──────────────────────────────────────────
+    // ── Controls ───────────────────────────────────────────────
 
     async function startAgent() {
       const btn = document.getElementById('btnStart');
       btn.disabled = true;
       btn.textContent = 'Starting...';
-
       try {
         await fetch('/api/start', { method: 'POST' });
-      } catch (err) {
+      } catch {
         btn.disabled = false;
         btn.textContent = 'Start Research';
       }
@@ -211,282 +128,108 @@
 
     async function sendChat(e) {
       e.preventDefault();
-      const input = document.getElementById('chatInput');
-      const message = input.value.trim();
-      if (!message) return;
-
-      input.value = '';
-      waitingForInput = false;
-      updateUI();
-
+      const ta = document.getElementById('chatInput');
+      const msg = ta.value.trim();
+      if (!msg) return;
+      ta.value = '';
+      ta.style.height = 'auto';
       await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message: msg }),
       });
     }
 
-    // ── Message Rendering ──────────────────────────────────────
+    // ── Render ─────────────────────────────────────────────────
 
     function renderMessage(msg) {
-      const container = document.getElementById('chatMessages');
-      const empty = document.getElementById('chatEmpty');
-      if (empty) empty.hidden = true;
+      const conv = document.getElementById('conversation');
+      const el = document.createElement('div');
+      el.className = 'msg msg-' + msg.role;
 
-      const div = document.createElement('div');
-      div.className = `chat-msg chat-msg-${msg.role}`;
+      if (msg.role === 'system') {
+        el.innerHTML = `<span class="msg-system-text">${esc(msg.content)}</span>`;
+      } else {
+        const who = msg.role === 'assistant' ? 'Agent' : 'You';
+        el.innerHTML = `<div class="msg-who">${who}</div><div class="msg-body">${md(msg.content)}</div>`;
+      }
 
-      const label = document.createElement('span');
-      label.className = 'msg-label';
-      label.textContent = msg.role === 'assistant' ? 'Agent' : msg.role === 'user' ? 'You' : 'System';
-
-      const content = document.createElement('div');
-      content.className = 'msg-content';
-      content.innerHTML = simpleMarkdown(msg.content);
-
-      div.appendChild(label);
-      div.appendChild(content);
-      container.appendChild(div);
-
-      // Auto-scroll
-      container.scrollTop = container.scrollHeight;
+      conv.appendChild(el);
+      conv.scrollTop = conv.scrollHeight;
     }
 
-    function simpleMarkdown(text) {
+    function md(text) {
       if (!text) return '';
-      return escapeHtml(text)
+      return esc(text)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/^### (.+)$/gm, '<h4>$1</h4>')
         .replace(/^## (.+)$/gm, '<h3>$1</h3>')
         .replace(/^# (.+)$/gm, '<h3>$1</h3>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
-        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
         .replace(/\n{2,}/g, '</p><p>')
         .replace(/\n/g, '<br>');
     }
 
-    // ── UI Updates ─────────────────────────────────────────────
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ── UI state ───────────────────────────────────────────────
 
     function updateUI() {
-      const chatForm = document.getElementById('chatForm');
-      const chatEmpty = document.getElementById('chatEmpty');
-      const btnSend = document.getElementById('btnSend');
-      const indicator = document.getElementById('statusIndicator');
-      const statusText = document.getElementById('statusText');
-      const hasMessages = document.querySelectorAll('.chat-msg').length > 0;
+      const inputArea = document.getElementById('inputArea');
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
 
       if (agentRunning) {
-        chatForm.hidden = false;
-        if (chatEmpty) chatEmpty.hidden = true;
-        btnSend.disabled = false;
-
-        if (waitingForInput) {
-          indicator.className = 'status-indicator waiting';
-          statusText.textContent = 'Waiting for your input';
-        } else {
-          indicator.className = 'status-indicator active';
-          statusText.textContent = 'Agent is working...';
-        }
+        inputArea.hidden = false;
+        dot.className = 'status-dot active';
+        text.textContent = 'Agent is working...';
       } else {
-        // Keep form visible if there are messages (session ended but history shown)
-        chatForm.hidden = !hasMessages;
-        btnSend.disabled = true;
-        indicator.className = 'status-indicator idle';
-        statusText.textContent = hasMessages ? 'Session ended' : 'Ready';
-
-        // Show start button again if session ended
-        if (!hasMessages && chatEmpty) chatEmpty.hidden = false;
+        inputArea.hidden = true;
+        dot.className = 'status-dot idle';
+        text.textContent = document.querySelectorAll('.msg').length > 0 ? 'Session ended' : 'Ready';
       }
-
-      document.getElementById('statusTime').textContent = new Date().toLocaleTimeString();
-    }
-
-    function getMessages() {
-      return document.querySelectorAll('.chat-msg');
-    }
-
-    // ── Pipeline + State Panels ────────────────────────────────
-
-    function updatePipeline(currentPhase) {
-      const currentIdx = PHASES_ORDER.indexOf(currentPhase);
-      document.querySelectorAll('.phase').forEach(el => {
-        const phase = el.dataset.phase;
-        const phaseIdx = PHASES_ORDER.indexOf(phase);
-        el.classList.remove('active', 'complete', 'inactive');
-        if (currentPhase === 'idle') {
-          el.classList.add('inactive');
-        } else if (currentPhase === 'complete') {
-          el.classList.add('complete');
-        } else if (phaseIdx < currentIdx) {
-          el.classList.add('complete');
-        } else if (phaseIdx === currentIdx) {
-          el.classList.add('active');
-        } else {
-          el.classList.add('inactive');
-        }
-      });
     }
 
     async function fetchStatus() {
       try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        updatePipeline(data.phase);
-        await updatePanels(data);
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        updatePipeline(d.phase);
       } catch {}
     }
 
-    async function updatePanels(data) {
-      if (!data.hasState) return;
-
-      const intakePanel = document.getElementById('intakePanel');
-      const icpPanel = document.getElementById('icpPanel');
-      const keywordsPanel = document.getElementById('keywordsPanel');
-      const feedbackPanel = document.getElementById('feedbackPanel');
-      const outputPanel = document.getElementById('outputPanel');
-
-      if (data.stateFiles.includes('intake.json')) {
-        intakePanel.hidden = false;
-        const intake = await fetchJSON('/api/state/intake.json');
-        if (intake) {
-          document.getElementById('intakeContent').innerHTML = renderIntake(intake);
-        }
-      }
-
-      if (data.stateFiles.includes('icp-draft.json')) {
-        icpPanel.hidden = false;
-        const icp = await fetchJSON('/api/state/icp-draft.json');
-        if (icp) {
-          document.getElementById('icpContent').innerHTML = renderICP(icp);
-        }
-      }
-
-      if (data.stateFiles.includes('keywords-draft.json')) {
-        keywordsPanel.hidden = false;
-        const kw = await fetchJSON('/api/state/keywords-draft.json');
-        if (kw) {
-          document.getElementById('keywordsContent').innerHTML = renderKeywords(kw);
-        }
-      }
-
-      const feedbackFiles = data.stateFiles.filter(f => f.includes('feedback'));
-      if (feedbackFiles.length > 0) {
-        feedbackPanel.hidden = false;
-        let html = '';
-        for (const f of feedbackFiles) {
-          const fb = await fetchJSON(`/api/state/${f}`);
-          if (fb) {
-            html += `<h3>${f.replace('.json', '')}</h3>`;
-            if (Array.isArray(fb)) {
-              html += fb.map((item, i) => `<div class="feedback-item"><span class="fb-num">#${i + 1}</span> ${escapeHtml(typeof item === 'string' ? item : JSON.stringify(item))}</div>`).join('');
-            } else {
-              html += `<pre>${escapeHtml(JSON.stringify(fb, null, 2))}</pre>`;
-            }
-          }
-        }
-        document.getElementById('feedbackContent').innerHTML = html;
-      }
-
-      if (data.outputFiles.length > 0) {
-        outputPanel.hidden = false;
-        if (data.outputFiles.includes('icp-profile.md')) {
-          const md = await fetchText('/api/output/icp-profile.md');
-          document.getElementById('icpOutput').innerHTML = `<pre class="markdown">${escapeHtml(md)}</pre>`;
-        }
-        if (data.outputFiles.includes('keyword-map.md')) {
-          const md = await fetchText('/api/output/keyword-map.md');
-          document.getElementById('keywordOutput').innerHTML = `<pre class="markdown">${escapeHtml(md)}</pre>`;
-        }
-      }
-    }
-
-    // ── Renderers ──────────────────────────────────────────────
-
-    function renderIntake(d) {
-      return `
-        <dl>
-          <dt>Business</dt><dd>${escapeHtml(d.businessName || '—')}</dd>
-          <dt>What they do</dt><dd>${escapeHtml(d.whatTheyDo || '—')}</dd>
-          <dt>Current audience</dt><dd>${escapeHtml(d.currentAudience || '—')}</dd>
-          <dt>Problem solved</dt><dd>${escapeHtml(d.problemSolved || '—')}</dd>
-          <dt>Positioning aspiration</dt><dd>${escapeHtml(d.positioningAspiration || '—')}</dd>
-        </dl>`;
-    }
-
-    function renderICP(d) {
-      let html = '';
-      if (d.summary) html += `<div class="icp-summary">${escapeHtml(d.summary)}</div>`;
-      if (d.demographics) {
-        html += '<h3>Demographics</h3><dl>';
-        for (const [k, v] of Object.entries(d.demographics)) {
-          html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</dd>`;
-        }
-        html += '</dl>';
-      }
-      if (d.languagePatterns) {
-        html += '<h3>Language Patterns</h3>';
-        for (const [k, v] of Object.entries(d.languagePatterns)) {
-          if (Array.isArray(v) && v.length) {
-            html += `<h4>${escapeHtml(k)}</h4><ul>${v.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
-          }
-        }
-      }
-      return html;
-    }
-
-    function renderKeywords(d) {
-      let html = '';
-      if (d.summary) html += `<div class="kw-summary">${escapeHtml(d.summary)}</div>`;
-      for (const stage of ['awareness', 'consideration', 'decision']) {
-        const clusters = d[stage];
-        if (clusters && clusters.length) {
-          html += `<h3>${stage.charAt(0).toUpperCase() + stage.slice(1)}</h3>`;
-          for (const cluster of clusters) {
-            html += `<div class="kw-cluster"><h4>${escapeHtml(cluster.theme)}</h4><ul>`;
-            for (const kw of cluster.keywords || []) {
-              html += `<li><span class="kw-term">${escapeHtml(kw.term)}</span> <span class="kw-source">${escapeHtml(kw.source)}</span></li>`;
-            }
-            html += '</ul></div>';
-          }
-        }
-      }
-      return html || '<p>No keywords yet</p>';
-    }
-
-    // ── Utilities ──────────────────────────────────────────────
-
-    async function fetchJSON(url) {
-      try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch { return null; }
-    }
-
-    async function fetchText(url) {
-      try { const r = await fetch(url); return r.ok ? await r.text() : ''; } catch { return ''; }
-    }
-
-    function escapeHtml(s) {
-      const d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
-    }
-
-    // ── Tabs ───────────────────────────────────────────────────
-
-    document.querySelectorAll('.tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.target;
-        btn.closest('.output-tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
-        btn.closest('.panel').querySelectorAll('.panel-content').forEach(p => p.hidden = true);
-        document.getElementById(target).hidden = false;
+    function updatePipeline(phase) {
+      const idx = PHASES.indexOf(phase);
+      document.querySelectorAll('.phase').forEach(el => {
+        const i = PHASES.indexOf(el.dataset.phase);
+        el.classList.remove('active','complete','inactive');
+        if (phase === 'idle') el.classList.add('inactive');
+        else if (phase === 'complete') el.classList.add('complete');
+        else if (i < idx) el.classList.add('complete');
+        else if (i === idx) el.classList.add('active');
+        else el.classList.add('inactive');
       });
+    }
+
+    // ── Textarea auto-resize + Enter to send ───────────────────
+
+    const ta = document.getElementById('chatInput');
+    ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    });
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.querySelector('.input-area form').requestSubmit();
+      }
     });
 
     // ── Init ───────────────────────────────────────────────────
 
     connectSSE();
     fetchStatus();
-    setInterval(fetchStatus, 10000);
   </script>
 </body>
 </html>

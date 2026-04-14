@@ -1,5 +1,5 @@
 import { query, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
-import type { SDKUserMessage, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { SDKUserMessage, SDKMessage, Query } from "@anthropic-ai/claude-agent-sdk";
 import { SYSTEM_PROMPT } from "../src/system-prompt.js";
 import { saveState, loadState, saveOutput, listState } from "../src/tools/state.js";
 
@@ -7,10 +7,6 @@ export type ChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
-};
-
-type PendingMessage = {
-  resolve: (msg: SDKUserMessage) => void;
 };
 
 const toolServer = createSdkMcpServer({
@@ -21,8 +17,11 @@ const toolServer = createSdkMcpServer({
 let running = false;
 let messages: ChatMessage[] = [];
 let sseClients: Set<(data: string) => void> = new Set();
-let pendingInput: PendingMessage | null = null;
-let agentQuery: ReturnType<typeof query> | null = null;
+let agentQuery: Query | null = null;
+
+// Queue for user messages — the input stream reads from this
+let messageQueue: SDKUserMessage[] = [];
+let messageWaiter: (() => void) | null = null;
 
 // ── Public API ───────────────────────────────────────────────
 
@@ -40,19 +39,24 @@ export function addSSEClient(send: (data: string) => void): () => void {
 }
 
 export function sendMessage(text: string): void {
-  if (!running || !pendingInput) return;
+  if (!running) return;
 
   // Add user message to history
   pushMessage({ role: "user", content: text, timestamp: new Date().toISOString() });
 
-  // Resolve the pending promise so the async generator yields
-  const pending = pendingInput;
-  pendingInput = null;
-  pending.resolve({
+  // Push to queue — the input stream will pick it up
+  messageQueue.push({
     type: "user",
     message: { role: "user", content: text },
     parent_tool_use_id: null,
   });
+
+  // Wake up the input stream if it's waiting
+  if (messageWaiter) {
+    const wake = messageWaiter;
+    messageWaiter = null;
+    wake();
+  }
 }
 
 export async function start(): Promise<void> {
@@ -60,31 +64,36 @@ export async function start(): Promise<void> {
 
   running = true;
   messages = [];
+  messageQueue = [];
+  messageWaiter = null;
   broadcast({ type: "started" });
 
-  // Create the async generator that bridges HTTP input to the agent
-  async function* conversationStream(): AsyncGenerator<SDKUserMessage> {
-    // First message: kick off the workflow
-    yield {
-      type: "user",
-      message: {
-        role: "user",
-        content: "Start the ICP & Keyword Research workflow. First check if there's existing state to resume, then proceed accordingly.",
-      },
-      parent_tool_use_id: null,
-    };
-
-    // Loop: wait for browser input
+  // Async iterable that the SDK consumes for user input.
+  // It never completes on its own — it yields messages from the queue
+  // and waits indefinitely when the queue is empty.
+  async function* inputStream(): AsyncGenerator<SDKUserMessage> {
     while (running) {
-      const msg = await waitForInput();
+      // Wait until there's a message in the queue
+      while (messageQueue.length === 0 && running) {
+        broadcast({ type: "waiting" });
+        await new Promise<void>((resolve) => {
+          messageWaiter = resolve;
+        });
+      }
+
       if (!running) return;
-      yield msg;
+
+      // Drain the queue
+      while (messageQueue.length > 0) {
+        yield messageQueue.shift()!;
+      }
     }
   }
 
   try {
+    // Start the query with the initial prompt
     agentQuery = query({
-      prompt: conversationStream(),
+      prompt: "Start the ICP & Keyword Research workflow. First check if there's existing state to resume, then proceed accordingly.",
       options: {
         systemPrompt: SYSTEM_PROMPT,
         model: "claude-sonnet-4-5",
@@ -102,21 +111,23 @@ export async function start(): Promise<void> {
       },
     });
 
+    // Start streaming input in the background — this keeps the session alive
+    // and feeds user messages as they come in from the browser
+    agentQuery.streamInput(inputStream());
+
+    // Read agent output
     for await (const message of agentQuery) {
       handleAgentMessage(message);
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    const errorStack = err instanceof Error ? err.stack || "" : "";
-    console.error("[Agent Error]", errorMsg, errorStack);
+    console.error("[Agent Error]", errorMsg);
     pushMessage({ role: "system", content: `Agent error: ${errorMsg}`, timestamp: new Date().toISOString() });
-    if (errorStack) {
-      pushMessage({ role: "system", content: `Details: ${errorStack.slice(0, 500)}`, timestamp: new Date().toISOString() });
-    }
     broadcast({ type: "error", content: errorMsg });
   } finally {
     running = false;
-    pendingInput = null;
+    messageWaiter = null;
+    messageQueue = [];
     agentQuery = null;
     broadcast({ type: "stopped" });
   }
@@ -128,25 +139,15 @@ export function stop(): void {
     agentQuery.close();
     agentQuery = null;
   }
-  // Unblock any pending input
-  if (pendingInput) {
-    pendingInput.resolve({
-      type: "user",
-      message: { role: "user", content: "" },
-      parent_tool_use_id: null,
-    });
-    pendingInput = null;
+  // Wake up any waiting input stream so it can exit
+  if (messageWaiter) {
+    const wake = messageWaiter;
+    messageWaiter = null;
+    wake();
   }
 }
 
 // ── Internal ─────────────────────────────────────────────────
-
-function waitForInput(): Promise<SDKUserMessage> {
-  return new Promise((resolve) => {
-    pendingInput = { resolve };
-    broadcast({ type: "waiting" });
-  });
-}
 
 function handleAgentMessage(message: SDKMessage): void {
   if (message.type === "assistant") {
