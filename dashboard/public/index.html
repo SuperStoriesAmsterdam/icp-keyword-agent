@@ -274,24 +274,29 @@
       const btnSend = document.getElementById('btnSend');
       const indicator = document.getElementById('statusIndicator');
       const statusText = document.getElementById('statusText');
+      const hasMessages = document.querySelectorAll('.chat-msg').length > 0;
 
       if (agentRunning) {
         chatForm.hidden = false;
         if (chatEmpty) chatEmpty.hidden = true;
+        btnSend.disabled = false;
 
         if (waitingForInput) {
           indicator.className = 'status-indicator waiting';
           statusText.textContent = 'Waiting for your input';
-          btnSend.disabled = false;
         } else {
           indicator.className = 'status-indicator active';
           statusText.textContent = 'Agent is working...';
-          btnSend.disabled = true;
         }
       } else {
-        chatForm.hidden = true;
+        // Keep form visible if there are messages (session ended but history shown)
+        chatForm.hidden = !hasMessages;
+        btnSend.disabled = true;
         indicator.className = 'status-indicator idle';
-        statusText.textContent = getMessages().length > 0 ? 'Session ended' : 'Ready';
+        statusText.textContent = hasMessages ? 'Session ended' : 'Ready';
+
+        // Show start button again if session ended
+        if (!hasMessages && chatEmpty) chatEmpty.hidden = false;
       }
 
       document.getElementById('statusTime').textContent = new Date().toLocaleTimeString();
