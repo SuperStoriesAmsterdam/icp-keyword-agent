@@ -38,7 +38,7 @@ body {
 /* ── Header ───────────────────────────────────────────────── */
 
 header {
-  padding: 2rem 2rem 1.25rem;
+  padding: 2rem 3rem 1.25rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -76,7 +76,7 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 3rem;
   overflow-x: auto;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -160,7 +160,7 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: 0.625rem 2rem;
+  padding: 0.625rem 3rem;
   font-size: 0.8125rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -227,6 +227,7 @@ main {
   background: var(--bg);
   min-height: 500px;
   max-height: calc(100vh - 220px);
+  overflow: hidden;
 }
 
 .chat-messages {
@@ -245,7 +246,9 @@ main {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 3rem;
+  padding: 3rem 2rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .empty-icon {
@@ -293,10 +296,12 @@ main {
 
 .chat-msg {
   max-width: 85%;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 8px;
   font-size: 0.8125rem;
   line-height: 1.7;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .chat-msg-user {
