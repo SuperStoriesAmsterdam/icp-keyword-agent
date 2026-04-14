@@ -45,8 +45,10 @@ export async function sendMessage(text: string): Promise<void> {
 
   try {
     await session.send(text);
-    // After sending, drain any new messages from the stream
-    // (the stream reader loop handles this automatically)
+    // Restart stream reader for the response
+    if (!readingStream) {
+      readStream();
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Send Error]", msg);
@@ -78,12 +80,17 @@ export async function start(): Promise<void> {
     // Start reading the stream in the background
     readStream();
 
-    // Send the initial prompt + system prompt
+    // Send system instructions as first message, then the start command
     await session.send({
       type: "user",
       message: {
         role: "user",
-        content: `${SYSTEM_PROMPT}\n\n---\n\nStart the ICP & Keyword Research workflow. First check if there's existing state to resume, then proceed accordingly.`,
+        content: [
+          {
+            type: "text",
+            text: `<system-instructions>\n${SYSTEM_PROMPT}\n</system-instructions>\n\nStart the ICP & Keyword Research workflow. First check if there's existing state to resume, then proceed accordingly. Remember: for Phase 1 Intake, ask for a freeform brief — do NOT ask rigid Q&A questions. Accept whatever the human provides and work with it.`,
+          },
+        ],
       },
       parent_tool_use_id: null,
     });
@@ -147,10 +154,14 @@ function handleMessage(message: SDKMessage): void {
   }
 
   if (message.type === "result") {
-    // In v2 sessions, result means the agent finished processing
-    // the current turn — NOT that the session is over.
-    // The session stays alive for more send() calls.
+    // Agent finished processing current turn — session stays alive.
+    // Restart stream reader for the next turn's output.
     broadcast({ type: "waiting" });
+  }
+
+  // Log all message types for debugging
+  if (message.type !== "assistant" && message.type !== "result") {
+    console.log(`[Agent msg type: ${message.type}]`);
   }
 }
 
