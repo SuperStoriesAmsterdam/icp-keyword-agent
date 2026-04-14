@@ -1,8 +1,8 @@
 services:
   dashboard:
     build: .
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - ./state:/app/state
       - ./output:/app/output
