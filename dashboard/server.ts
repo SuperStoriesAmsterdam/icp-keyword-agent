@@ -2,6 +2,14 @@ import express from "express";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import {
+  start as startAgent,
+  stop as stopAgent,
+  sendMessage,
+  isRunning,
+  getMessages,
+  addSSEClient,
+} from "./agent-runner.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = path.resolve(__dirname, "../state");
@@ -10,7 +18,7 @@ const OUTPUT_DIR = path.resolve(__dirname, "../output");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // ── API: Overall status ──────────────────────────────────────
@@ -20,7 +28,6 @@ app.get("/api/status", async (_req, res) => {
     const stateFiles = await safeReaddir(STATE_DIR);
     const outputFiles = await safeReaddir(OUTPUT_DIR);
 
-    // Try to determine current phase from workflow state
     let phase = "idle";
     let hasState = false;
 
@@ -33,7 +40,6 @@ app.get("/api/status", async (_req, res) => {
         );
         phase = JSON.parse(workflow).phase || "unknown";
       } catch {
-        // Infer phase from available files
         if (outputFiles.includes("keyword-map.md")) phase = "complete";
         else if (stateFiles.includes("keywords-draft.json")) phase = "keyword-review";
         else if (stateFiles.includes("keywords-feedback.json")) phase = "keyword-review";
@@ -50,9 +56,10 @@ app.get("/api/status", async (_req, res) => {
       hasState,
       stateFiles,
       outputFiles,
+      agentRunning: isRunning(),
       updatedAt: new Date().toISOString(),
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to read status" });
   }
 });
@@ -60,7 +67,7 @@ app.get("/api/status", async (_req, res) => {
 // ── API: Read state file ─────────────────────────────────────
 
 app.get("/api/state/:filename", async (req, res) => {
-  const filename = path.basename(req.params.filename); // prevent traversal
+  const filename = path.basename(req.params.filename);
   const filePath = path.join(STATE_DIR, filename);
   try {
     const content = await fs.readFile(filePath, "utf-8");
@@ -85,6 +92,60 @@ app.get("/api/output/:filename", async (req, res) => {
   } catch {
     res.status(404).json({ error: "Output file not found" });
   }
+});
+
+// ── API: Agent control ───────────────────────────────────────
+
+app.post("/api/start", (_req, res) => {
+  if (isRunning()) {
+    res.status(409).json({ error: "Agent is already running" });
+    return;
+  }
+  // Start agent in background (don't await — it runs until done)
+  startAgent();
+  res.json({ ok: true });
+});
+
+app.post("/api/stop", (_req, res) => {
+  stopAgent();
+  res.json({ ok: true });
+});
+
+app.post("/api/chat", (req, res) => {
+  const { message } = req.body;
+  if (!message || typeof message !== "string") {
+    res.status(400).json({ error: "Message required" });
+    return;
+  }
+  if (!isRunning()) {
+    res.status(409).json({ error: "Agent is not running" });
+    return;
+  }
+  sendMessage(message);
+  res.json({ ok: true });
+});
+
+app.get("/api/messages", (_req, res) => {
+  res.json(getMessages());
+});
+
+// ── SSE: Stream agent events ─────────────────────────────────
+
+app.get("/api/stream", (req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+
+  // Send current state on connect
+  res.write(`data: ${JSON.stringify({ type: "connected", running: isRunning(), messages: getMessages() })}\n\n`);
+
+  const remove = addSSEClient((data: string) => {
+    res.write(`data: ${data}\n\n`);
+  });
+
+  req.on("close", remove);
 });
 
 // ── Helpers ──────────────────────────────────────────────────

@@ -64,54 +64,61 @@
     <!-- Status Bar -->
     <section class="status-bar" id="statusBar">
       <span class="status-indicator" id="statusIndicator"></span>
-      <span id="statusText">Checking status...</span>
+      <span id="statusText">Connecting...</span>
       <span class="status-time" id="statusTime"></span>
     </section>
 
-    <!-- Content Panels -->
-    <div class="panels" id="panels">
-      <!-- Empty state -->
-      <section class="panel empty-state" id="emptyState">
-        <div class="empty-icon">&#9673;</div>
-        <h2>No active research</h2>
-        <p>Run the agent in your terminal to start a research workflow.</p>
-        <code>cd ~/Desktop/Builds/Agent && npm start</code>
-      </section>
-
-      <!-- Intake Panel -->
-      <section class="panel" id="intakePanel" hidden>
-        <h2>Intake</h2>
-        <div class="panel-content" id="intakeContent"></div>
-      </section>
-
-      <!-- ICP Panel -->
-      <section class="panel" id="icpPanel" hidden>
-        <h2>ICP Profile</h2>
-        <div class="panel-content" id="icpContent"></div>
-      </section>
-
-      <!-- Keywords Panel -->
-      <section class="panel" id="keywordsPanel" hidden>
-        <h2>Keyword Map</h2>
-        <div class="panel-content" id="keywordsContent"></div>
-      </section>
-
-      <!-- Feedback Panel -->
-      <section class="panel" id="feedbackPanel" hidden>
-        <h2>Feedback History</h2>
-        <div class="panel-content" id="feedbackContent"></div>
-      </section>
-
-      <!-- Output Panel -->
-      <section class="panel wide" id="outputPanel" hidden>
-        <h2>Final Deliverables</h2>
-        <div class="output-tabs">
-          <button class="tab active" data-target="icpOutput">ICP Profile</button>
-          <button class="tab" data-target="keywordOutput">Keyword Map</button>
+    <!-- Chat + Panels Layout -->
+    <div class="layout">
+      <!-- Chat Panel -->
+      <section class="chat-panel" id="chatPanel">
+        <div class="chat-messages" id="chatMessages">
+          <!-- Empty state / start button -->
+          <div class="chat-empty" id="chatEmpty">
+            <div class="empty-icon">&#9673;</div>
+            <h2>Ready to research</h2>
+            <p>Start a new ICP & keyword research workflow.</p>
+            <button class="btn-start" id="btnStart" onclick="startAgent()">Start Research</button>
+          </div>
         </div>
-        <div class="panel-content" id="icpOutput"></div>
-        <div class="panel-content" id="keywordOutput" hidden></div>
+        <form class="chat-input" id="chatForm" onsubmit="sendChat(event)" hidden>
+          <input type="text" id="chatInput" placeholder="Type your response..." autocomplete="off">
+          <button type="submit" id="btnSend">Send</button>
+        </form>
       </section>
+
+      <!-- State Panels (sidebar) -->
+      <aside class="side-panels" id="sidePanels">
+        <section class="panel" id="intakePanel" hidden>
+          <h2>Intake Brief</h2>
+          <div class="panel-content" id="intakeContent"></div>
+        </section>
+
+        <section class="panel" id="icpPanel" hidden>
+          <h2>ICP Profile</h2>
+          <div class="panel-content" id="icpContent"></div>
+        </section>
+
+        <section class="panel" id="keywordsPanel" hidden>
+          <h2>Keyword Map</h2>
+          <div class="panel-content" id="keywordsContent"></div>
+        </section>
+
+        <section class="panel" id="feedbackPanel" hidden>
+          <h2>Feedback History</h2>
+          <div class="panel-content" id="feedbackContent"></div>
+        </section>
+
+        <section class="panel" id="outputPanel" hidden>
+          <h2>Final Deliverables</h2>
+          <div class="output-tabs">
+            <button class="tab active" data-target="icpOutput">ICP Profile</button>
+            <button class="tab" data-target="keywordOutput">Keyword Map</button>
+          </div>
+          <div class="panel-content" id="icpOutput"></div>
+          <div class="panel-content" id="keywordOutput" hidden></div>
+        </section>
+      </aside>
     </div>
   </main>
 
@@ -122,17 +129,179 @@
   <script>
     const PHASES_ORDER = ['intake', 'product-definition', 'search-sources', 'icp-research', 'icp-review', 'keyword-research', 'keyword-review', 'deliver', 'complete'];
 
-    async function fetchStatus() {
+    let agentRunning = false;
+    let waitingForInput = false;
+    let eventSource = null;
+
+    // ── SSE Connection ─────────────────────────────────────────
+
+    function connectSSE() {
+      eventSource = new EventSource('/api/stream');
+
+      eventSource.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        handleEvent(data);
+      };
+
+      eventSource.onerror = () => {
+        document.getElementById('statusText').textContent = 'Reconnecting...';
+        setTimeout(() => {
+          if (eventSource) eventSource.close();
+          connectSSE();
+        }, 3000);
+      };
+    }
+
+    function handleEvent(data) {
+      switch (data.type) {
+        case 'connected':
+          agentRunning = data.running;
+          updateUI();
+          // Render existing messages
+          if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => renderMessage(msg));
+          }
+          break;
+
+        case 'started':
+          agentRunning = true;
+          updateUI();
+          break;
+
+        case 'message':
+          renderMessage(data.message);
+          break;
+
+        case 'waiting':
+          waitingForInput = true;
+          updateUI();
+          document.getElementById('chatInput').focus();
+          break;
+
+        case 'stopped':
+        case 'complete':
+          agentRunning = false;
+          waitingForInput = false;
+          updateUI();
+          break;
+
+        case 'error':
+          renderMessage({ role: 'system', content: `Error: ${data.content}`, timestamp: new Date().toISOString() });
+          break;
+      }
+
+      // Refresh state panels
+      fetchStatus();
+    }
+
+    // ── Agent Control ──────────────────────────────────────────
+
+    async function startAgent() {
+      const btn = document.getElementById('btnStart');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+
       try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        updatePipeline(data.phase);
-        updateStatusBar(data);
-        await updatePanels(data);
-      } catch (e) {
-        document.getElementById('statusText').textContent = 'Dashboard offline';
+        await fetch('/api/start', { method: 'POST' });
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Start Research';
       }
     }
+
+    async function sendChat(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+
+      input.value = '';
+      waitingForInput = false;
+      updateUI();
+
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+    }
+
+    // ── Message Rendering ──────────────────────────────────────
+
+    function renderMessage(msg) {
+      const container = document.getElementById('chatMessages');
+      const empty = document.getElementById('chatEmpty');
+      if (empty) empty.hidden = true;
+
+      const div = document.createElement('div');
+      div.className = `chat-msg chat-msg-${msg.role}`;
+
+      const label = document.createElement('span');
+      label.className = 'msg-label';
+      label.textContent = msg.role === 'assistant' ? 'Agent' : msg.role === 'user' ? 'You' : 'System';
+
+      const content = document.createElement('div');
+      content.className = 'msg-content';
+      content.innerHTML = simpleMarkdown(msg.content);
+
+      div.appendChild(label);
+      div.appendChild(content);
+      container.appendChild(div);
+
+      // Auto-scroll
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function simpleMarkdown(text) {
+      if (!text) return '';
+      return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^# (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        .replace(/\n{2,}/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    }
+
+    // ── UI Updates ─────────────────────────────────────────────
+
+    function updateUI() {
+      const chatForm = document.getElementById('chatForm');
+      const chatEmpty = document.getElementById('chatEmpty');
+      const btnSend = document.getElementById('btnSend');
+      const indicator = document.getElementById('statusIndicator');
+      const statusText = document.getElementById('statusText');
+
+      if (agentRunning) {
+        chatForm.hidden = false;
+        if (chatEmpty) chatEmpty.hidden = true;
+
+        if (waitingForInput) {
+          indicator.className = 'status-indicator waiting';
+          statusText.textContent = 'Waiting for your input';
+          btnSend.disabled = false;
+        } else {
+          indicator.className = 'status-indicator active';
+          statusText.textContent = 'Agent is working...';
+          btnSend.disabled = true;
+        }
+      } else {
+        chatForm.hidden = true;
+        indicator.className = 'status-indicator idle';
+        statusText.textContent = getMessages().length > 0 ? 'Session ended' : 'Ready';
+      }
+
+      document.getElementById('statusTime').textContent = new Date().toLocaleTimeString();
+    }
+
+    function getMessages() {
+      return document.querySelectorAll('.chat-msg');
+    }
+
+    // ── Pipeline + State Panels ────────────────────────────────
 
     function updatePipeline(currentPhase) {
       const currentIdx = PHASES_ORDER.indexOf(currentPhase);
@@ -154,56 +323,24 @@
       });
     }
 
-    function updateStatusBar(data) {
-      const indicator = document.getElementById('statusIndicator');
-      const text = document.getElementById('statusText');
-      const time = document.getElementById('statusTime');
-
-      if (!data.hasState) {
-        indicator.className = 'status-indicator idle';
-        text.textContent = 'No active research';
-      } else if (data.phase === 'complete') {
-        indicator.className = 'status-indicator complete';
-        text.textContent = 'Research complete';
-      } else {
-        indicator.className = 'status-indicator active';
-        const phaseLabels = {
-          'intake': 'Gathering client brief',
-          'product-definition': 'Defining the product',
-          'search-sources': 'Defining search sources',
-          'icp-research': 'Researching ICP',
-          'icp-review': 'Awaiting ICP feedback',
-          'keyword-research': 'Researching keywords',
-          'keyword-review': 'Awaiting keyword feedback',
-          'deliver': 'Finalizing deliverables'
-        };
-        text.textContent = phaseLabels[data.phase] || `Phase: ${data.phase}`;
-      }
-
-      time.textContent = new Date(data.updatedAt).toLocaleTimeString();
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        updatePipeline(data.phase);
+        await updatePanels(data);
+      } catch {}
     }
 
     async function updatePanels(data) {
-      const emptyState = document.getElementById('emptyState');
+      if (!data.hasState) return;
+
       const intakePanel = document.getElementById('intakePanel');
       const icpPanel = document.getElementById('icpPanel');
       const keywordsPanel = document.getElementById('keywordsPanel');
       const feedbackPanel = document.getElementById('feedbackPanel');
       const outputPanel = document.getElementById('outputPanel');
 
-      if (!data.hasState) {
-        emptyState.hidden = false;
-        intakePanel.hidden = true;
-        icpPanel.hidden = true;
-        keywordsPanel.hidden = true;
-        feedbackPanel.hidden = true;
-        outputPanel.hidden = true;
-        return;
-      }
-
-      emptyState.hidden = true;
-
-      // Intake
       if (data.stateFiles.includes('intake.json')) {
         intakePanel.hidden = false;
         const intake = await fetchJSON('/api/state/intake.json');
@@ -212,7 +349,6 @@
         }
       }
 
-      // ICP
       if (data.stateFiles.includes('icp-draft.json')) {
         icpPanel.hidden = false;
         const icp = await fetchJSON('/api/state/icp-draft.json');
@@ -221,7 +357,6 @@
         }
       }
 
-      // Keywords
       if (data.stateFiles.includes('keywords-draft.json')) {
         keywordsPanel.hidden = false;
         const kw = await fetchJSON('/api/state/keywords-draft.json');
@@ -230,7 +365,6 @@
         }
       }
 
-      // Feedback
       const feedbackFiles = data.stateFiles.filter(f => f.includes('feedback'));
       if (feedbackFiles.length > 0) {
         feedbackPanel.hidden = false;
@@ -249,7 +383,6 @@
         document.getElementById('feedbackContent').innerHTML = html;
       }
 
-      // Final outputs
       if (data.outputFiles.length > 0) {
         outputPanel.hidden = false;
         if (data.outputFiles.includes('icp-profile.md')) {
@@ -273,8 +406,6 @@
           <dt>Current audience</dt><dd>${escapeHtml(d.currentAudience || '—')}</dd>
           <dt>Problem solved</dt><dd>${escapeHtml(d.problemSolved || '—')}</dd>
           <dt>Positioning aspiration</dt><dd>${escapeHtml(d.positioningAspiration || '—')}</dd>
-          <dt>Existing data</dt><dd>${escapeHtml(d.existingData || '—')}</dd>
-          <dt>Additional context</dt><dd>${escapeHtml(d.additionalContext || '—')}</dd>
         </dl>`;
     }
 
@@ -288,13 +419,6 @@
         }
         html += '</dl>';
       }
-      if (d.psychographics) {
-        html += '<h3>Psychographics</h3><dl>';
-        for (const [k, v] of Object.entries(d.psychographics)) {
-          html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</dd>`;
-        }
-        html += '</dl>';
-      }
       if (d.languagePatterns) {
         html += '<h3>Language Patterns</h3>';
         for (const [k, v] of Object.entries(d.languagePatterns)) {
@@ -302,13 +426,6 @@
             html += `<h4>${escapeHtml(k)}</h4><ul>${v.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
           }
         }
-      }
-      if (d.whereTheyGather) {
-        html += '<h3>Where They Gather</h3><dl>';
-        for (const [k, v] of Object.entries(d.whereTheyGather)) {
-          html += `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(Array.isArray(v) ? v.join(', ') : String(v))}</dd>`;
-        }
-        html += '</dl>';
       }
       return html;
     }
@@ -360,8 +477,9 @@
       });
     });
 
-    // ── Auto-refresh ───────────────────────────────────────────
+    // ── Init ───────────────────────────────────────────────────
 
+    connectSSE();
     fetchStatus();
     setInterval(fetchStatus, 10000);
   </script>
