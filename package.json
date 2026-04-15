@@ -8,10 +8,9 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "latest",
+    "@anthropic-ai/sdk": "^0.89.0",
     "express": "^5.2.1",
-    "tsx": "^4.19.0",
-    "zod": "^4.0.0"
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

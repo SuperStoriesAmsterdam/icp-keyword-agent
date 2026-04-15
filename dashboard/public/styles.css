@@ -25,6 +25,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* ── Header ───────────────────────────────────────────────── */
@@ -206,6 +207,8 @@ main {
 .msg-body {
   font-size: 0.9375rem;
   line-height: 1.75;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .msg-body h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.375rem; }
