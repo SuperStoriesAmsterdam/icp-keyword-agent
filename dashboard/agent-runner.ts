@@ -216,7 +216,7 @@ async function processUserMessage(userText: string): Promise<void> {
 
   // Call Claude
   let response = await client.messages.create({
-    model: "claude-sonnet-4-5-20250514",
+    model: "claude-sonnet-4-5-latest",
     max_tokens: 8192,
     system: SYSTEM_PROMPT,
     tools,
@@ -256,7 +256,7 @@ async function processUserMessage(userText: string): Promise<void> {
 
     // Call Claude again with tool results
     response = await client.messages.create({
-      model: "claude-sonnet-4-5-20250514",
+      model: "claude-sonnet-4-5-latest",
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
       tools,
